@@ -3,6 +3,13 @@ export const DISPLAY_NAME = "Circumstance";
 export const CONFIGURE_LABEL = "Configure Circumstance";
 export const escape = value => foundry.utils.escapeHTML(String(value ?? ""));
 
+const ROLL_TYPES = {
+  skill: "Skill Check",
+  tool: "Tool Check",
+  ability: "Ability Check",
+  save: "Save"
+};
+
 function categoryFor(item) {
   const identifier = item.system.identifier ?? "";
   if (item.system.type?.value === "scroll" || /^(book|scroll)(-|$)/i.test(identifier)) {
@@ -63,20 +70,35 @@ export function itemLabel(item) {
 
 export async function configureItem(item) {
   const aid = item.getFlag(ID, "aid") ?? {};
-  const options = rollOptions();
-  const row = ({ roll, value } = {}) => `
+  const options = Map.groupBy(rollOptions(), ([key]) => key.split(":")[0]);
+  const targets = (type, selected) => {
+    const entries = options.get(type) ?? [];
+    const choices = selected && !entries.some(([key]) => key === selected)
+      ? [...entries, [selected, selected]]
+      : entries;
+    return choices.map(([key, label]) =>
+      `<option value="${escape(key)}"${key === selected ? " selected" : ""}>${escape(label)}</option>`
+    ).join("");
+  };
+  const row = ({ roll, value } = {}) => {
+    const type = roll?.split(":")[0] ?? "skill";
+    const types = Object.hasOwn(ROLL_TYPES, type) ? ROLL_TYPES : { ...ROLL_TYPES, [type]: type };
+    return `
     <div class="kg-circumstance-rule">
-      <select aria-label="Roll type" required>
-        ${options.map(([key, label]) => `<option value="${escape(key)}"
-          ${key === roll ? "selected" : ""}>${escape(label)}</option>`).join("")}
+      <select data-roll-type aria-label="Roll type" required>
+        ${Object.entries(types).map(([key, label]) =>
+          `<option value="${escape(key)}"${key === type ? " selected" : ""}>${escape(label)}</option>`
+        ).join("")}
       </select>
+      <select data-roll-target aria-label="Specific roll" required>${targets(type, roll)}</select>
       <input type="number" step="1" required aria-label="Bonus" value="${escape(value ?? 5)}">
       <button type="button" data-remove aria-label="Remove bonus"><i class="fa-solid fa-trash"></i></button>
     </div>`;
+  };
   const { DialogV2 } = foundry.applications.api;
   const result = await DialogV2.wait({
     window: { title: CONFIGURE_LABEL },
-    position: { width: 500 },
+    position: { width: 560 },
     content: `
       <div class="form-group"><label>Item name</label>
         <input name="itemName" required value="${escape(item.name)}"></div>
@@ -103,6 +125,12 @@ export async function configureItem(item) {
       rules.addEventListener("click", event => {
         event.target.closest("[data-remove]")?.closest(".kg-circumstance-rule").remove();
       });
+      rules.addEventListener("change", event => {
+        const type = event.target.closest("[data-roll-type]");
+        if (!type) return;
+        const target = type.closest(".kg-circumstance-rule").querySelector("[data-roll-target]");
+        target.innerHTML = targets(type.value);
+      });
     },
     buttons: [{
       action: "save", label: "Save", default: true,
@@ -112,7 +140,7 @@ export async function configureItem(item) {
         category: form.elements.category.value.trim(),
         stack: form.elements.stack.checked,
         bonuses: Array.from(form.querySelectorAll(".kg-circumstance-rule"), rule => ({
-          roll: rule.querySelector("select").value,
+          roll: rule.querySelector("[data-roll-target]").value,
           value: rule.querySelector("input").valueAsNumber
         }))
       })
@@ -120,7 +148,7 @@ export async function configureItem(item) {
   });
   if (!result || result === "cancel") return;
   const { name, bonuses, ...fields } = result;
-  if (!name || !fields.category || bonuses.some(({ value }) => !Number.isSafeInteger(value) || !value)
+  if (!name || !fields.category || bonuses.some(({ roll, value }) => !roll || !Number.isSafeInteger(value) || !value)
     || new Set(bonuses.map(({ roll }) => roll)).size !== bonuses.length) {
     ui.notifications.warn("Enter a name, a category, and one nonzero integer bonus per roll type.");
     return;
