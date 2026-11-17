@@ -1,0 +1,15 @@
+{
+  "id": "kg-circumstance",
+  "title": "KG Circumstance",
+  "description": "Select situational bonuses from your inventory when rolling D&D 5e checks and saves.",
+  "version": "0.1.5",
+  "url": "https://github.com/KonteiKeisei/kg-circumstance",
+  "manifest": "https://github.com/KonteiKeisei/kg-circumstance/releases/latest/download/module.json",
+  "download": "https://github.com/KonteiKeisei/kg-circumstance/releases/download/v0.1.5/kg-circumstance-v0.1.5.zip",
+  "compatibility": { "minimum": "13.347", "verified": "14" },
+  "relationships": {
+    "systems": [{ "id": "dnd5e", "type": "system", "compatibility": { "minimum": "5.3.0" } }]
+  },
+  "esmodules": ["scripts/main.mjs"],
+  "styles": ["styles/circumstance.css"]
+}
