@@ -9,3 +9,14 @@ Enable **Require GM approval** in the world settings to send an active GM a priv
 For local installation, copy the `kg-circumstance` folder into Foundry's `Data/modules` and enable it in a dnd5e world. The module targets Foundry V13.347 and V14 with dnd5e 5.3 or newer. It uses the native dnd5e roll dialog and requires no additional modules.
 
 To rename the module, edit `title` in `module.json`. Keep `id` and the installation folder as `kg-circumstance` to preserve item flags and world settings.
+
+## Item eligibility hook
+
+Other modules can listen to `kg-circumstance.canUseItem` to decide whether an item can contribute to a roll. The hook receives the rolling Actor, the owned Item, and the roll key (for example, `skill:arc`). Return `false` synchronously to exclude the item. Return nothing to leave it eligible. The same hook runs when listing choices, submitting choices, and processing GM approval, so register the listener on all clients.
+
+```js
+Hooks.on("kg-circumstance.canUseItem", (actor, item, rollKey) => {
+  const language = item.getFlag("my-module", "requiredLanguage");
+  if (language && !actor.system.traits?.languages?.value?.has(language)) return false;
+});
+```

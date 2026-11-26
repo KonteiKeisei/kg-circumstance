@@ -53,6 +53,7 @@ export function matchingItems(actor, key) {
   return Array.from(actor?.items ?? []).flatMap(item => {
     const aid = item.getFlag(ID, "aid");
     if (!aid || item.system.quantity === 0) return [];
+    if (Hooks.call("kg-circumstance.canUseItem", actor, item, key) === false) return [];
     const bonus = aid.bonuses?.find(entry => entry.roll === key)?.value;
     if (!Number.isSafeInteger(bonus) || bonus === 0) return [];
     return [{
